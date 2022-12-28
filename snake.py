@@ -4,6 +4,7 @@ import asyncio
 import itertools
 import masterclock 
 import ledagent
+import random
 
 # switch off auto_write
 pixels = neopixel.NeoPixel(board.D18, 50,
@@ -41,14 +42,23 @@ rainbow = [
     (255, 0 , 0)
 ]
 
-async def snake_down(color):
-    print(f"snake: {color}")
+async def snake(color, updir, speed = 1.0):
+    print(f"snake: {color} {speed}")
     for i in range(0, 50):
-        ag = agents[49-i]
-        ag.put_trapeze(color, (0,0,0), 20, 0, 60)
-        await mclock.delay(15)
+        ag = agents[i if updir else 49-i]
+        ag.put_trapeze(color, (0,0,0), int(20 * speed), 0, int(60 * speed))
+        await mclock.delay(int(15 * speed))
 
-async def animation(color_scheme):
+async def color_snake(color_scheme, updir, speed = 1.0):
+    print(f"color_snake {speed}")
+    icolor = 0
+    for i in range(0, 50):
+        ag = agents[i if updir else 49-i]
+        ag.put_trapeze(color_scheme[icolor % len(color_scheme)], (0,0,0), int(20 * speed), 0, int(60 * speed))
+        icolor += 1
+        await mclock.delay(int(15 * speed))
+        
+async def animation(color_scheme, speed = 1.0):
     snake_delay =0
     tasks = [ ]
     for round in range(1000):
@@ -56,16 +66,18 @@ async def animation(color_scheme):
             while len(tasks) > len(color_scheme):
                 await asyncio.wait([tasks[0]])
                 del tasks[0]
-            tasks.append(asyncio.create_task(snake_down(color)))
-            await mclock.delay(400)
+            tasks.append(asyncio.create_task(snake(color, False, speed)))
+            await mclock.delay(300)
     # wait for remaining snakes.
     asyncio.wait(tasks)
     finish_all()
 
+async def wild_snake():
+    for round in range(1000):
+        await mclock.delay(100)
+        await color_snake(rainbow, True, 0.3)
+        
 async def main():
-    clock_task = asyncio.create_task(mclock.run())
-    await animation(rainbow)
-    await clock_task
+    await asyncio.gather(mclock.run(), animation(rainbow), animation(rainbow,  2), wild_snake())
    
 asyncio.run(main())
-
